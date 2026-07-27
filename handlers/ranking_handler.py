@@ -30,4 +30,39 @@ async def show_ranking_detail(update, context):
         for i, u in enumerate(users, 1):
             name = u.first_name or f"ID:{u.telegram_id}"
             medal = medals[i-1] if i <= 3 else f'{i}º'
-            txt += f"{medal}
+            txt += f"{medal} {name}\n   💰 R$ {u.balance:.2f}\n\n"
+    
+    elif tp == 'recharge':
+        users = db.get_top_rechargers(10)
+        txt = "💠 *Top 10 Depósitos*\n\n"
+        for i, u in enumerate(users, 1):
+            name = u.first_name or f"ID:{u.telegram_id}"
+            medal = ['🥇', '🥈', '🥉'][i-1] if i <= 3 else f'{i}º'
+            txt += f"{medal} {name}\n   💰 R$ {u.total_recharged:.2f}\n\n"
+    
+    elif tp == 'products':
+        products = db.get_top_products(10)
+        txt = "📦 *Top 10 Produtos*\n\n"
+        for i, p in enumerate(products, 1):
+            medal = ['🥇', '🥈', '🥉'][i-1] if i <= 3 else f'{i}º'
+            txt += f"{medal} {p.name}\n   🛒 {p.total_sold} vendas\n\n"
+    
+    elif tp == 'recent':
+        users = db.get_recent_rechargers(10)
+        txt = "📈 *Top 10 Recentes*\n\n"
+        for i, (u, total) in enumerate(users, 1):
+            name = u.first_name or f"ID:{u.telegram_id}"
+            medal = ['🥇', '🥈', '🥉'][i-1] if i <= 3 else f'{i}º'
+            txt += f"{medal} {name}\n   💰 R$ {total:.2f}\n\n"
+    
+    elif tp == 'buyers':
+        users = db.get_top_buyers(10)
+        txt = "🛒 *Top 10 Compradores*\n\n"
+        for i, u in enumerate(users, 1):
+            name = u.first_name or f"ID:{u.telegram_id}"
+            medal = ['🥇', '🥈', '🥉'][i-1] if i <= 3 else f'{i}º'
+            txt += f"{medal} {name}\n   🛒 {u.total_purchases} compras\n\n"
+    
+    await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Voltar", callback_data='m5')]
+    ]), parse_mode='Markdown')
