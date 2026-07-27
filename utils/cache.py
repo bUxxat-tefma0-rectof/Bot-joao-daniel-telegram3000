@@ -29,13 +29,54 @@ class Cache:
             value = callback()
             self.set(key, value)
         return value
-    
-    def size(self):
-        return len(self.cache)
-    
-    def keys(self):
-        return list(self.cache.keys())
 
-user_cache = Cache(ttl_minutes=5)
-product_cache = Cache(ttl_minutes=10)
-setting_cache = Cache(ttl_minutes=30)
+class CacheHandler:
+    def __init__(self):
+        self.user_cache = Cache(ttl_minutes=5)
+        self.product_cache = Cache(ttl_minutes=10)
+        self.setting_cache = Cache(ttl_minutes=30)
+        self.stats_cache = Cache(ttl_minutes=15)
+    
+    def get_user(self, telegram_id):
+        from database.db_manager import DBManager
+        def fetch():
+            db = DBManager()
+            user = db.get_user(telegram_id)
+            db.close()
+            return user
+        return self.user_cache.get_or_set(f'user_{telegram_id}', fetch)
+    
+    def get_product(self, product_id):
+        from database.db_manager import DBManager
+        def fetch():
+            db = DBManager()
+            product = db.get_product(product_id)
+            db.close()
+            return product
+        return self.product_cache.get_or_set(f'product_{product_id}', fetch)
+    
+    def get_setting(self, key, default=''):
+        from database.db_manager import DBManager
+        def fetch():
+            db = DBManager()
+            value = db.get_setting(key, default)
+            db.close()
+            return value
+        return self.setting_cache.get_or_set(f'setting_{key}', fetch)
+    
+    def get_stats(self):
+        from database.db_manager import DBManager
+        def fetch():
+            db = DBManager()
+            stats = db.get_stats()
+            db.close()
+            return stats
+        return self.stats_cache.get_or_set('stats', fetch)
+    
+    def clear_all(self):
+        self.user_cache.clear()
+        self.product_cache.clear()
+        self.setting_cache.clear()
+        self.stats_cache.clear()
+
+cache_handler = CacheHandler()
