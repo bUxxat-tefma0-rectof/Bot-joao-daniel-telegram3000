@@ -178,4 +178,17 @@ async def adm_callback(update, context):
             'success_text': '📝 Texto Sucesso:', 'history_text': '📝 Texto Histórico:', 'terms_text': '📝 Texto Termos:',
             'support_text': '📝 Texto Suporte:', 'flood_text': '📝 Texto Flood:', 'expired_pix_text': '📝 Texto PIX Expirado:',
             'btn1': '🔘 Botão 1:', 'btn2': '🔘 Botão 2:', 'btn3': '🔘 Botão 3:', 'btn4': '🔘 Botão 4:',
-            'btn5': '🔘 Botão 5:', '
+            'btn5': '🔘 Botão 5:', 'btn6': '🔘 Botão 6:', 'btn7': '🔘 Botão 7:', 'btn8': '🔘 Botão 8:',
+            'pos': '📐 Posições (8):\nfull|left|right|full|left|right|left|right',
+            'mp_token': '🔑 Token MP:', 'deposit_min': '📥 Mín:', 'deposit_max': '📤 Máx:', 'expiration': '⏰ Expira (min):',
+            'bonus': '🎁 Bônus (%):', 'bonus_min': '📊 Mín Bônus:', 'commission': '💰 Comissão (%):',
+            'affiliate_points': '📥 Pontos/Recarga:', 'affiliate_min_points': '🎯 Mín Pontos:',
+            'registration_bonus': '🎁 Bônus Registro:', 'flood_seconds': '⏱️ Flood Segundos:',
+            'add_login': '📦 SERVICO|EMAIL|SENHA|DESC|DURACAO|PRECO:', 'remove_login': '➖ SERVICO:',
+            'remove_platform': '🗑️ Plataforma:', 'clear_stock': '💣 Digite CONFIRMAR:',
+            'service_price': '💰 SERVICO|PRECO:', 'all_prices': '💵 Preço:',
+            'add_product': '📦 NOME|PREÇO|ESTOQUE|CATEGORIA:', 'broadcast': '📤 Mensagem:',
+            'gift': '🎁 Valor:', 'add_admin': '➕ ID:', 'remove_admin': '➖ ID:',
+            'search_user': '🔍 ID:', 'add_image': '📸 URL:', 'remove_image': '🗑️ Nome:',
+        }
+        await q.edit_message_text(prompts.get(field, f'Envie {field}:'))
