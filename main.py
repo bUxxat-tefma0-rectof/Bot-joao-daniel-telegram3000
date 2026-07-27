@@ -1,12 +1,12 @@
 import asyncio
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from config.settings import BOT_TOKEN, ADMIN_ID
 from database.models import init_db
 from database.db_manager import DBManager
 
 from handlers.client_handler import start, callback, handle_msg, waiting, db as cdb
-from handlers.admin_handler import admin, adm_callback, astates
+from handlers.admin_handler import admin, adm_callback, admin_states
 from handlers.payment_handler import process_payment, check_pix_callback
 from handlers.cart_handler import add_to_cart, view_cart, remove_from_cart, clear_cart, checkout
 from handlers.search_handler import start_search, do_search
@@ -36,7 +36,6 @@ from services.pix_service import PixService
 from services.gift_service import GiftService
 from services.login_service import LoginService
 from services.affiliate_service import AffiliateService
-from services.pdf_service import PDFService
 
 from utils.logger import logger
 from utils.cache import cache_handler
@@ -108,7 +107,7 @@ class Bot:
             await update.message.reply_text(f"⚠️ Aguarde {seconds}s!")
             return
         
-        if user.id == ADMIN_ID and user.id in astates:
+        if user.id == ADMIN_ID and user.id in admin_states:
             await self.handle_admin_states(update, context)
             return
         
@@ -119,146 +118,8 @@ class Bot:
         await handle_msg(update, context)
     
     async def handle_admin_states(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user = update.effective_user
-        text = update.message.text
-        field = astates[user.id]
-        
-        field_map = {
-            'welcome': 'welcome_text', 'image': 'welcome_image', 'support': 'support_link',
-            'catalog_text': 'catalog_text', 'product_text': 'product_text',
-            'insufficient_text': 'insufficient_text', 'pix_result_text': 'pix_result_text',
-            'profile_text': 'profile_text', 'recarga_text': 'recarga_text',
-            'pix_ask_text': 'pix_ask_text', 'multi_text': 'multi_text',
-            'convert_text': 'convert_text', 'success_text': 'success_text',
-            'history_text': 'history_text', 'terms_text': 'terms_text',
-            'support_text': 'support_text', 'flood_text': 'flood_text',
-            'expired_pix_text': 'expired_pix_text', 'bot_name': 'bot_name',
-            'btn1': 'btn1_text', 'btn2': 'btn2_text', 'btn3': 'btn3_text', 'btn4': 'btn4_text',
-            'btn5': 'btn5_text', 'btn6': 'btn6_text', 'btn7': 'btn7_text', 'btn8': 'btn8_text',
-            'mp_token': 'mp_access_token', 'deposit_min': 'deposit_min',
-            'deposit_max': 'deposit_max', 'expiration': 'pix_expiration',
-            'bonus': 'bonus_percentage', 'bonus_min': 'bonus_min_value',
-            'commission': 'commission_percentage', 'registration_bonus': 'registration_bonus',
-            'flood_seconds': 'flood_seconds', 'convert_seconds': 'convert_seconds',
-        }
-        
-        if field == 'pos':
-            for i, p in enumerate(text.split('|')[:8], 1):
-                if p.strip() in ['full', 'left', 'right']:
-                    self.db.set_setting(f'btn{i}_pos', p.strip())
-            await update.message.reply_text("✅ Posições salvas!")
-        
-        elif field == 'broadcast':
-            from database.models import SessionLocal, User
-            session = SessionLocal()
-            users = session.query(User).all()
-            count = 0
-            for u in users:
-                try:
-                    await context.bot.send_message(u.telegram_id, text)
-                    count += 1
-                except: pass
-            session.close()
-            await update.message.reply_text(f"✅ {count} usuários!")
-        
-        elif field == 'add_product':
-            parts = text.split('|')
-            if len(parts) >= 3:
-                self.db.add_product(parts[0].strip(), float(parts[1]), int(parts[2]),
-                                    parts[3].strip() if len(parts) > 3 else '',
-                                    parts[4].strip() if len(parts) > 4 else '')
-                await update.message.reply_text("✅ Produto!")
-        
-        elif field == 'gift':
-            try:
-                gs = GiftService()
-                gift = gs.create(float(text))
-                await update.message.reply_text(f"✅ Gift: {gift.code}")
-                gs.close()
-            except: await update.message.reply_text("❌ Inválido!")
-        
-        elif field == 'add_login':
-            parts = text.split('|')
-            if len(parts) >= 3:
-                ls = LoginService()
-                ls.add(parts[0].strip(), parts[1].strip(), parts[2].strip(),
-                       parts[3].strip() if len(parts) > 3 else '',
-                       parts[4].strip() if len(parts) > 4 else '30 dias',
-                       float(parts[5]) if len(parts) > 5 else 0)
-                ls.close()
-                await update.message.reply_text("✅ Login!")
-        
-        elif field == 'remove_login':
-            ls = LoginService()
-            count = ls.remove(text.strip())
-            ls.close()
-            await update.message.reply_text(f"✅ {count} removidos!")
-        
-        elif field == 'remove_platform':
-            ls = LoginService()
-            count = ls.remove(text.strip())
-            ls.close()
-            await update.message.reply_text(f"✅ {count} removidos!")
-        
-        elif field == 'clear_stock':
-            if text.upper() == 'CONFIRMAR':
-                ls = LoginService()
-                count = ls.clear()
-                ls.close()
-                await update.message.reply_text(f"✅ {count} removidos!")
-        
-        elif field == 'service_price':
-            parts = text.split('|')
-            if len(parts) >= 2:
-                ls = LoginService()
-                count = ls.update_price(parts[0].strip(), float(parts[1]))
-                ls.close()
-                await update.message.reply_text(f"✅ {count} atualizados!")
-        
-        elif field == 'all_prices':
-            try:
-                ls = LoginService()
-                count = ls.update_all(float(text))
-                ls.close()
-                await update.message.reply_text(f"✅ {count} atualizados!")
-            except: await update.message.reply_text("❌ Inválido!")
-        
-        elif field == 'add_admin':
-            try:
-                u = self.db.get_user(int(text))
-                if u:
-                    u.is_admin = True
-                    self.db.db.commit()
-                    await update.message.reply_text("✅ Admin!")
-                else: await update.message.reply_text("❌ Não encontrado!")
-            except: await update.message.reply_text("❌ Inválido!")
-        
-        elif field == 'remove_admin':
-            try:
-                u = self.db.get_user(int(text))
-                if u:
-                    u.is_admin = False
-                    self.db.db.commit()
-                    await update.message.reply_text("✅ Removido!")
-                else: await update.message.reply_text("❌ Não encontrado!")
-            except: await update.message.reply_text("❌ Inválido!")
-        
-        elif field == 'search_user':
-            try:
-                u = self.db.get_user(int(text))
-                if u:
-                    await update.message.reply_text(f"👤 {u.telegram_id}\n💰 R$ {u.balance:.2f}\n🛒 {u.total_purchases}")
-                else: await update.message.reply_text("❌ Não encontrado!")
-            except: await update.message.reply_text("❌ Inválido!")
-        
-        elif field in field_map:
-            self.db.set_setting(field_map[field], text)
-            await update.message.reply_text("✅ Salvo!")
-        
-        else:
-            await update.message.reply_text("✅ OK!")
-        
-        del astates[user.id]
+        from handlers.admin_handler import handle_admin_message
+        await handle_admin_message(update, context)
     
     async def handle_user_states(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
@@ -332,8 +193,8 @@ class Bot:
     
     async def handle_photos(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
-        if user.id == ADMIN_ID and user.id in astates:
-            field = astates[user.id]
+        if user.id == ADMIN_ID and user.id in admin_states:
+            field = admin_states[user.id]
             if field == 'welcome_image':
                 photo = update.message.photo[-1]
                 file = await context.bot.get_file(photo.file_id)
@@ -343,7 +204,7 @@ class Bot:
                 await file.download_to_drive(file_path)
                 self.db.set_setting('welcome_image', file_path)
                 await update.message.reply_text("✅ Imagem salva!")
-                del astates[user.id]
+                del admin_states[user.id]
     
     def start_services(self):
         import threading
