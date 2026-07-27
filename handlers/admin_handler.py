@@ -1,194 +1,433 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
 from database.db_manager import DBManager
 from config.settings import ADMIN_ID
 
 db = DBManager()
 astates = {}
 
-async def admin(update, context):
-    if update.effective_user.id != ADMIN_ID: await update.message.reply_text("❌"); return
-    s = db.get_stats()
-    bot_name = db.get_setting('bot_name', 'STORE BOT')
-    txt = f"📊 Dashboard @{bot_name}\n\n👥 Users: {s['users']}\n💰 Receita: R$ {s['total_revenue']:.2f}\n💰 Mês: R$ {s['month_revenue']:.2f}\n💰 Hoje: R$ {s['today_revenue']:.2f}\n🛒 Vendas: {s['sales']}\n🛒 Hoje: {s['today_sales']}\n📦 Estoque: {s['logins_stock']}"
-    kb = [
-        [InlineKeyboardButton("⚙️ Configurações", callback_data='adm_config')],
-        [InlineKeyboardButton("🔧 Ações", callback_data='adm_actions')],
-        [InlineKeyboardButton("📊 Transações", callback_data='adm_transactions')],
-        [InlineKeyboardButton("🔄 Atualizações", callback_data='adm_updates')]
-    ]
-    await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb))
-
-async def adm_callback(update, context):
-    q = update.callback_query; await q.answer(); d = q.data; u = q.from_user
-    if u.id != ADMIN_ID: return
+async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if user.id != ADMIN_ID:
+        await update.message.reply_text("❌ Acesso negado!")
+        return
     
+    s = db.get_stats()
+    bot_name = db.get_setting('bot_name', 'BOT')
+    
+    txt = f"📊 *DASHBOARD*\n\n"
+    txt += f"👥 Usuários: {s['users']}\n"
+    txt += f"💰 Receita: R$ {s['total_revenue']:.2f}\n"
+    txt += f"🛒 Vendas: {s['sales']}\n"
+    txt += f"📦 Estoque: {s['logins_stock']}\n\n"
+    txt += f"🤖 @{bot_name}"
+    
+    kb = [
+        [InlineKeyboardButton("⚙️ CONFIGURAÇÕES", callback_data='adm_config')],
+        [InlineKeyboardButton("🔧 AÇÕES", callback_data='adm_actions')],
+        [InlineKeyboardButton("📊 RELATÓRIOS", callback_data='adm_reports')]
+    ]
+    
+    await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+
+async def adm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    d = q.data
+    u = q.from_user
+    
+    if u.id != ADMIN_ID:
+        return
+    
+    # ============ MENU PRINCIPAL ============
+    if d == 'adm_back':
+        s = db.get_stats()
+        txt = f"📊 *DASHBOARD*\n\n👥 {s['users']} | 💰 R$ {s['total_revenue']:.2f} | 🛒 {s['sales']}"
+        kb = [
+            [InlineKeyboardButton("⚙️ CONFIGURAÇÕES", callback_data='adm_config')],
+            [InlineKeyboardButton("🔧 AÇÕES", callback_data='adm_actions')]
+        ]
+        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
+    
+    # ============ CONFIGURAÇÕES ============
     if d == 'adm_config':
         kb = [
-            [InlineKeyboardButton("⚙️ Configurações Gerais", callback_data='adm_cfg_general')],
-            [InlineKeyboardButton("👑 Configurar Admins", callback_data='adm_cfg_admins')],
-            [InlineKeyboardButton("💼 Configurar Afiliados", callback_data='adm_cfg_affiliate')],
-            [InlineKeyboardButton("👥 Configurar Usuários", callback_data='adm_cfg_users')],
-            [InlineKeyboardButton("💳 Configurar PIX", callback_data='adm_cfg_pix')],
-            [InlineKeyboardButton("📦 Configurar Logins", callback_data='adm_cfg_logins')],
-            [InlineKeyboardButton("🔍 Configurar Pesquisa", callback_data='adm_cfg_search')],
-            [InlineKeyboardButton("🔙 Voltar", callback_data='adm_back')]
+            [InlineKeyboardButton("⚙️ CONFIGURAÇÕES GERAIS", callback_data='adm_cfg_general')],
+            [InlineKeyboardButton("👑 CONFIGURAR ADMINS", callback_data='adm_cfg_admins')],
+            [InlineKeyboardButton("💼 CONFIGURAR AFILIADOS", callback_data='adm_cfg_affiliate')],
+            [InlineKeyboardButton("💳 CONFIGURAR PIX", callback_data='adm_cfg_pix')],
+            [InlineKeyboardButton("📦 CONFIGURAR LOGINS", callback_data='adm_cfg_logins')],
+            [InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_back')]
         ]
-        await q.edit_message_text("⚙️ Configurações", reply_markup=InlineKeyboardMarkup(kb))
+        await q.edit_message_text("⚙️ *CONFIGURAÇÕES*", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
     
-    elif d == 'adm_cfg_general':
+    # ============ CONFIGURAÇÕES GERAIS ============
+    if d == 'adm_cfg_general':
         s = db.get_all_settings()
-        txt = f"⚙️ Gerais\n\nNome: @{s.get('bot_name', 'STORE BOT')}\nSuporte: {s.get('support_link', '')}\nManutenção: {s.get('maintenance_mode', 'off')}"
+        txt = f"⚙️ *GERAL*\n\n"
+        txt += f"🤖 Nome: @{s.get('bot_name','')}\n"
+        txt += f"📞 Suporte: {s.get('support_link','')}\n"
+        txt += f"🔧 Manutenção: {s.get('maintenance_mode','off')}\n\n"
+        txt += f"🔘 B1: {s.get('btn1_text','')}\n"
+        txt += f"🔘 B2: {s.get('btn2_text','')}\n"
+        txt += f"🔘 B3: {s.get('btn3_text','')}\n"
+        txt += f"🔘 B4: {s.get('btn4_text','')}\n"
+        txt += f"🔘 B5: {s.get('btn5_text','')}\n"
+        txt += f"🔘 B6: {s.get('btn6_text','')}\n"
+        txt += f"🔘 B7: {s.get('btn7_text','')}\n"
+        txt += f"🔘 B8: {s.get('btn8_text','')}\n"
+        txt += f"📐 Posições: {s.get('btn1_pos','')}|{s.get('btn2_pos','')}|{s.get('btn3_pos','')}|{s.get('btn4_pos','')}|{s.get('btn5_pos','')}|{s.get('btn6_pos','')}|{s.get('btn7_pos','')}|{s.get('btn8_pos','')}"
+        
         kb = [
-            [InlineKeyboardButton("📝 Nome do Bot", callback_data='adm_edit_bot_name')],
-            [InlineKeyboardButton("📝 Texto Boas-vindas", callback_data='adm_edit_welcome')],
-            [InlineKeyboardButton("🖼️ Imagem", callback_data='adm_edit_image')],
-            [InlineKeyboardButton("📞 Suporte", callback_data='adm_edit_support')],
-            [InlineKeyboardButton(f"🔧 Manutenção ({s.get('maintenance_mode', 'off')})", callback_data='adm_toggle_maintenance')],
-            [InlineKeyboardButton("📝 Texto Catálogo", callback_data='adm_edit_catalog_text')],
-            [InlineKeyboardButton("📝 Texto Produto", callback_data='adm_edit_product_text')],
-            [InlineKeyboardButton("📝 Texto Saldo Insuf.", callback_data='adm_edit_insufficient_text')],
-            [InlineKeyboardButton("📝 Texto PIX Resultado", callback_data='adm_edit_pix_result_text')],
-            [InlineKeyboardButton("📝 Texto Perfil", callback_data='adm_edit_profile_text')],
-            [InlineKeyboardButton("📝 Texto Recarga", callback_data='adm_edit_recarga_text')],
-            [InlineKeyboardButton("📝 Texto PIX Pergunta", callback_data='adm_edit_pix_ask_text')],
-            [InlineKeyboardButton("📝 Texto Multi Compra", callback_data='adm_edit_multi_text')],
-            [InlineKeyboardButton("📝 Texto Conversão", callback_data='adm_edit_convert_text')],
-            [InlineKeyboardButton("📝 Texto Sucesso", callback_data='adm_edit_success_text')],
-            [InlineKeyboardButton("📝 Texto Histórico", callback_data='adm_edit_history_text')],
-            [InlineKeyboardButton("📝 Texto Termos", callback_data='adm_edit_terms_text')],
-            [InlineKeyboardButton("📝 Texto Suporte", callback_data='adm_edit_support_text')],
-            [InlineKeyboardButton("📝 Texto Flood", callback_data='adm_edit_flood_text')],
-            [InlineKeyboardButton("📝 Texto PIX Expirado", callback_data='adm_edit_expired_pix_text')],
-            [InlineKeyboardButton("🔘 B1", callback_data='adm_edit_btn1'), InlineKeyboardButton("🔘 B2", callback_data='adm_edit_btn2')],
-            [InlineKeyboardButton("🔘 B3", callback_data='adm_edit_btn3'), InlineKeyboardButton("🔘 B4", callback_data='adm_edit_btn4')],
-            [InlineKeyboardButton("🔘 B5", callback_data='adm_edit_btn5'), InlineKeyboardButton("🔘 B6", callback_data='adm_edit_btn6')],
-            [InlineKeyboardButton("🔘 B7", callback_data='adm_edit_btn7'), InlineKeyboardButton("🔘 B8", callback_data='adm_edit_btn8')],
-            [InlineKeyboardButton("📐 Posições", callback_data='adm_edit_pos')],
-            [InlineKeyboardButton("🔙 Voltar", callback_data='adm_config')]
+            [InlineKeyboardButton("🤖 NOME DO BOT", callback_data='adm_edit_bot_name')],
+            [InlineKeyboardButton("📝 TEXTO BOAS-VINDAS", callback_data='adm_edit_welcome')],
+            [InlineKeyboardButton("🖼️ IMAGEM", callback_data='adm_edit_image')],
+            [InlineKeyboardButton("📞 SUPORTE", callback_data='adm_edit_support')],
+            [InlineKeyboardButton(f"🔧 MANUTENÇÃO ({s.get('maintenance_mode','off')})", callback_data='adm_toggle_maintenance')],
+            [InlineKeyboardButton("━"*10, callback_data='none')],
+            [InlineKeyboardButton("🔘 BOTÃO 1", callback_data='adm_edit_btn1'), InlineKeyboardButton("🔘 BOTÃO 2", callback_data='adm_edit_btn2')],
+            [InlineKeyboardButton("🔘 BOTÃO 3", callback_data='adm_edit_btn3'), InlineKeyboardButton("🔘 BOTÃO 4", callback_data='adm_edit_btn4')],
+            [InlineKeyboardButton("🔘 BOTÃO 5", callback_data='adm_edit_btn5'), InlineKeyboardButton("🔘 BOTÃO 6", callback_data='adm_edit_btn6')],
+            [InlineKeyboardButton("🔘 BOTÃO 7", callback_data='adm_edit_btn7'), InlineKeyboardButton("🔘 BOTÃO 8", callback_data='adm_edit_btn8')],
+            [InlineKeyboardButton("━"*10, callback_data='none')],
+            [InlineKeyboardButton("📐 MUDAR POSIÇÕES", callback_data='adm_edit_pos')],
+            [InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_config')]
         ]
-        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb))
+        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
     
-    elif d == 'adm_cfg_pix':
+    # ============ CONFIGURAR PIX ============
+    if d == 'adm_cfg_pix':
         s = db.get_all_settings()
-        txt = f"💳 PIX\n\nToken: {'✅' if s.get('mp_access_token') else '❌'}\nMín: R$ {s.get('deposit_min', '')}\nMáx: R$ {s.get('deposit_max', '')}\nExpira: {s.get('pix_expiration', '')}min\nBônus: {s.get('bonus_percentage', '')}%\nMín Bônus: R$ {s.get('bonus_min_value', '')}"
+        token_status = "✅ Configurado" if s.get('mp_access_token') else "❌ Não configurado"
+        txt = f"💳 *CONFIGURAR PIX*\n\n"
+        txt += f"🔑 Token: {token_status}\n"
+        txt += f"📥 Mín: R$ {s.get('deposit_min','2.00')}\n"
+        txt += f"📤 Máx: R$ {s.get('deposit_max','150.00')}\n"
+        txt += f"⏰ Expira: {s.get('pix_expiration','15')} min\n"
+        txt += f"🎁 Bônus: {s.get('bonus_percentage','0')}%\n"
+        txt += f"📊 Mín Bônus: R$ {s.get('bonus_min_value','10.00')}"
+        
         kb = [
-            [InlineKeyboardButton("🔑 Token", callback_data='adm_edit_mp_token')],
-            [InlineKeyboardButton("📥 Mín", callback_data='adm_edit_deposit_min')],
-            [InlineKeyboardButton("📤 Máx", callback_data='adm_edit_deposit_max')],
-            [InlineKeyboardButton("⏰ Expira", callback_data='adm_edit_expiration')],
-            [InlineKeyboardButton("🎁 Bônus", callback_data='adm_edit_bonus')],
-            [InlineKeyboardButton("📊 Mín Bônus", callback_data='adm_edit_bonus_min')],
-            [InlineKeyboardButton("🔙 Voltar", callback_data='adm_config')]
+            [InlineKeyboardButton("🔑 MUDAR TOKEN", callback_data='adm_edit_mp_token')],
+            [InlineKeyboardButton("📥 MUDAR MÍNIMO", callback_data='adm_edit_deposit_min')],
+            [InlineKeyboardButton("📤 MUDAR MÁXIMO", callback_data='adm_edit_deposit_max')],
+            [InlineKeyboardButton("⏰ MUDAR EXPIRAÇÃO", callback_data='adm_edit_expiration')],
+            [InlineKeyboardButton("🎁 MUDAR BÔNUS", callback_data='adm_edit_bonus')],
+            [InlineKeyboardButton("📊 MUDAR MÍN BÔNUS", callback_data='adm_edit_bonus_min')],
+            [InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_config')]
         ]
-        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb))
+        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
     
-    elif d == 'adm_cfg_logins':
-        txt = f"📦 Logins\n\nEstoque: {db.get_stock_count()}"
+    # ============ CONFIGURAR LOGINS ============
+    if d == 'adm_cfg_logins':
+        stock = db.get_stock_count()
+        txt = f"📦 *CONFIGURAR LOGINS*\n\n📊 Estoque: {stock} logins"
+        
         kb = [
-            [InlineKeyboardButton("➕ Adicionar", callback_data='adm_edit_add_login')],
-            [InlineKeyboardButton("➖ Remover", callback_data='adm_edit_remove_login')],
-            [InlineKeyboardButton("🗑️ Remover Plataforma", callback_data='adm_edit_remove_platform')],
-            [InlineKeyboardButton("💣 Zerar Estoque", callback_data='adm_edit_clear_stock')],
-            [InlineKeyboardButton("💰 Mudar Preço Serviço", callback_data='adm_edit_service_price')],
-            [InlineKeyboardButton("💵 Mudar Preço Todos", callback_data='adm_edit_all_prices')],
-            [InlineKeyboardButton("🔙 Voltar", callback_data='adm_config')]
+            [InlineKeyboardButton("➕ ADICIONAR LOGIN", callback_data='adm_edit_add_login')],
+            [InlineKeyboardButton("➖ REMOVER LOGIN", callback_data='adm_edit_remove_login')],
+            [InlineKeyboardButton("🗑️ REMOVER PLATAFORMA", callback_data='adm_edit_remove_platform')],
+            [InlineKeyboardButton("💣 ZERAR ESTOQUE", callback_data='adm_edit_clear_stock')],
+            [InlineKeyboardButton("💰 MUDAR PREÇO SERVIÇO", callback_data='adm_edit_service_price')],
+            [InlineKeyboardButton("💵 MUDAR PREÇO TODOS", callback_data='adm_edit_all_prices')],
+            [InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_config')]
         ]
-        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb))
+        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
     
-    elif d == 'adm_cfg_affiliate':
+    # ============ CONFIGURAR AFILIADOS ============
+    if d == 'adm_cfg_affiliate':
         s = db.get_all_settings()
-        txt = f"💼 Afiliados\n\nSistema: {s.get('affiliate_system', 'on')}\nComissão: {s.get('commission_percentage', '')}%\nPontos/Recarga: {s.get('affiliate_points_per_recharge', '')}\nMín Pontos: {s.get('affiliate_min_points', '')}\nMultiplicador: {s.get('affiliate_multiplier', '')}"
+        txt = f"💼 *AFILIADOS*\n\nSistema: {s.get('affiliate_system','on')}\nComissão: {s.get('commission_percentage','20')}%\nPontos/Recarga: {s.get('affiliate_points_per_recharge','1')}\nMín Pontos: {s.get('affiliate_min_points','500')}"
+        
         kb = [
-            [InlineKeyboardButton(f"Sistema ({s.get('affiliate_system', 'on')})", callback_data='adm_toggle_affiliate')],
-            [InlineKeyboardButton("💰 Comissão", callback_data='adm_edit_commission')],
-            [InlineKeyboardButton("📥 Pontos/Recarga", callback_data='adm_edit_affiliate_points')],
-            [InlineKeyboardButton("🎯 Mín Pontos", callback_data='adm_edit_affiliate_min_points')],
-            [InlineKeyboardButton("🔙 Voltar", callback_data='adm_config')]
+            [InlineKeyboardButton(f"SISTEMA ({s.get('affiliate_system','on')})", callback_data='adm_toggle_affiliate')],
+            [InlineKeyboardButton("💰 COMISSÃO", callback_data='adm_edit_commission')],
+            [InlineKeyboardButton("📥 PONTOS/RECARGA", callback_data='adm_edit_affiliate_points')],
+            [InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_config')]
         ]
-        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb))
+        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
     
-    elif d == 'adm_cfg_users':
-        s = db.get_all_settings()
-        txt = f"👥 Usuários\n\nBônus Registro: R$ {s.get('registration_bonus', '')}\nFlood: {s.get('flood_seconds', '')}s"
+    # ============ CONFIGURAR ADMINS ============
+    if d == 'adm_cfg_admins':
         kb = [
-            [InlineKeyboardButton("📤 Transmitir", callback_data='adm_edit_broadcast')],
-            [InlineKeyboardButton("🔍 Pesquisar", callback_data='adm_edit_search_user')],
-            [InlineKeyboardButton("🎁 Bônus Registro", callback_data='adm_edit_registration_bonus')],
-            [InlineKeyboardButton("⏱️ Flood Segundos", callback_data='adm_edit_flood_seconds')],
-            [InlineKeyboardButton("🔙 Voltar", callback_data='adm_config')]
+            [InlineKeyboardButton("➕ ADICIONAR ADMIN", callback_data='adm_edit_add_admin')],
+            [InlineKeyboardButton("➖ REMOVER ADMIN", callback_data='adm_edit_remove_admin')],
+            [InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_config')]
         ]
-        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb))
+        await q.edit_message_text("👑 *ADMINS*", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
     
-    elif d == 'adm_cfg_admins':
+    # ============ AÇÕES ============
+    if d == 'adm_actions':
         kb = [
-            [InlineKeyboardButton("➕ Adicionar", callback_data='adm_edit_add_admin')],
-            [InlineKeyboardButton("➖ Remover", callback_data='adm_edit_remove_admin')],
-            [InlineKeyboardButton("🔙 Voltar", callback_data='adm_config')]
+            [InlineKeyboardButton("📦 ADICIONAR PRODUTO", callback_data='adm_edit_add_product')],
+            [InlineKeyboardButton("📤 TRANSMITIR", callback_data='adm_edit_broadcast')],
+            [InlineKeyboardButton("🎁 CRIAR GIFT CARD", callback_data='adm_edit_gift')],
+            [InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_back')]
         ]
-        await q.edit_message_text("👑 Admins", reply_markup=InlineKeyboardMarkup(kb))
+        await q.edit_message_text("🔧 *AÇÕES*", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
     
-    elif d == 'adm_cfg_search':
-        kb = [
-            [InlineKeyboardButton("📸 Adicionar Imagem", callback_data='adm_edit_add_image')],
-            [InlineKeyboardButton("🗑️ Remover Imagem", callback_data='adm_edit_remove_image')],
-            [InlineKeyboardButton("🔙 Voltar", callback_data='adm_config')]
-        ]
-        await q.edit_message_text("🔍 Pesquisa", reply_markup=InlineKeyboardMarkup(kb))
-    
-    elif d == 'adm_actions':
-        kb = [
-            [InlineKeyboardButton("📦 Adicionar Produto", callback_data='adm_edit_add_product')],
-            [InlineKeyboardButton("📤 Transmitir", callback_data='adm_edit_broadcast')],
-            [InlineKeyboardButton("🎁 Criar Gift Card", callback_data='adm_edit_gift')],
-            [InlineKeyboardButton("🔙 Voltar", callback_data='adm_back')]
-        ]
-        await q.edit_message_text("🔧 Ações", reply_markup=InlineKeyboardMarkup(kb))
-    
-    elif d == 'adm_transactions':
+    # ============ RELATÓRIOS ============
+    if d == 'adm_reports':
         s = db.get_stats()
-        await q.edit_message_text(f"📊 Transações\n\nVendas: {s['sales']}\nReceita: R$ {s['total_revenue']:.2f}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Voltar", callback_data='adm_back')]]))
+        txt = f"📊 *RELATÓRIOS*\n\n👥 {s['users']} usuários\n💰 R$ {s['total_revenue']:.2f} receita\n🛒 {s['sales']} vendas"
+        kb = [[InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_back')]]
+        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        return
     
-    elif d == 'adm_updates':
-        await q.edit_message_text(f"🔄 Versão: {db.get_setting('bot_version', '1.0.0')}\n✅ Sistema operacional", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Voltar", callback_data='adm_back')]]))
+    # ============ TOGGLES ============
+    if d == 'adm_toggle_maintenance':
+        c = db.get_setting('maintenance_mode', 'off')
+        db.set_setting('maintenance_mode', 'on' if c == 'off' else 'off')
+        await q.edit_message_text(f"✅ Manutenção {'ATIVADA' if c == 'off' else 'DESATIVADA'}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_cfg_general')]]))
+        return
     
-    elif d == 'adm_back':
-        s = db.get_stats()
-        bot_name = db.get_setting('bot_name', 'STORE BOT')
-        txt = f"📊 Dashboard @{bot_name}\n\n👥 {s['users']}\n💰 R$ {s['total_revenue']:.2f}"
-        kb = [[InlineKeyboardButton("⚙️ Configurações", callback_data='adm_config')], [InlineKeyboardButton("🔧 Ações", callback_data='adm_actions')]]
-        await q.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(kb))
+    if d == 'adm_toggle_affiliate':
+        c = db.get_setting('affiliate_system', 'on')
+        db.set_setting('affiliate_system', 'on' if c == 'off' else 'off')
+        await q.edit_message_text(f"✅ Afiliado {'ATIVADO' if c == 'off' else 'DESATIVADO'}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 VOLTAR", callback_data='adm_cfg_affiliate')]]))
+        return
     
-    elif d == 'adm_toggle_maintenance':
-        c = db.get_setting('maintenance_mode', 'off'); db.set_setting('maintenance_mode', 'on' if c == 'off' else 'off')
-        await q.edit_message_text(f"✅ {'ATIVADA' if c == 'off' else 'DESATIVADA'}")
-    
-    elif d == 'adm_toggle_affiliate':
-        c = db.get_setting('affiliate_system', 'on'); db.set_setting('affiliate_system', 'on' if c == 'off' else 'off')
-        await q.edit_message_text(f"✅ {'ATIVADO' if c == 'off' else 'DESATIVADO'}")
-    
-    elif d.startswith('adm_edit_'):
+    # ============ EDIÇÕES ============
+    if d.startswith('adm_edit_'):
         field = d.replace('adm_edit_', '')
         astates[u.id] = field
+        
         prompts = {
-            'bot_name': '📝 Nome do Bot (sem @):',
-            'welcome': '📝 Texto Boas-vindas:', 'image': '🖼️ URL Imagem:', 'support': '📞 Suporte:',
-            'catalog_text': '📝 Texto Catálogo:', 'product_text': '📝 Texto Produto:', 'insufficient_text': '📝 Texto Saldo Insuf.:',
-            'pix_result_text': '📝 Texto PIX Resultado:', 'profile_text': '📝 Texto Perfil:', 'recarga_text': '📝 Texto Recarga:',
-            'pix_ask_text': '📝 Texto PIX Pergunta:', 'multi_text': '📝 Texto Multi Compra:', 'convert_text': '📝 Texto Conversão:',
-            'success_text': '📝 Texto Sucesso:', 'history_text': '📝 Texto Histórico:', 'terms_text': '📝 Texto Termos:',
-            'support_text': '📝 Texto Suporte:', 'flood_text': '📝 Texto Flood:', 'expired_pix_text': '📝 Texto PIX Expirado:',
-            'btn1': '🔘 Botão 1:', 'btn2': '🔘 Botão 2:', 'btn3': '🔘 Botão 3:', 'btn4': '🔘 Botão 4:',
-            'btn5': '🔘 Botão 5:', 'btn6': '🔘 Botão 6:', 'btn7': '🔘 Botão 7:', 'btn8': '🔘 Botão 8:',
-            'pos': '📐 Posições (8):\nfull|left|right|full|left|right|left|right',
-            'mp_token': '🔑 Token MP:', 'deposit_min': '📥 Mín:', 'deposit_max': '📤 Máx:', 'expiration': '⏰ Expira (min):',
-            'bonus': '🎁 Bônus (%):', 'bonus_min': '📊 Mín Bônus:', 'commission': '💰 Comissão (%):',
-            'affiliate_points': '📥 Pontos/Recarga:', 'affiliate_min_points': '🎯 Mín Pontos:',
-            'registration_bonus': '🎁 Bônus Registro:', 'flood_seconds': '⏱️ Flood Segundos:',
-            'add_login': '📦 SERVICO|EMAIL|SENHA|DESC|DURACAO|PRECO:', 'remove_login': '➖ SERVICO:',
-            'remove_platform': '🗑️ Plataforma:', 'clear_stock': '💣 Digite CONFIRMAR:',
-            'service_price': '💰 SERVICO|PRECO:', 'all_prices': '💵 Preço:',
-            'add_product': '📦 NOME|PREÇO|ESTOQUE|CATEGORIA:', 'broadcast': '📤 Mensagem:',
-            'gift': '🎁 Valor:', 'add_admin': '➕ ID:', 'remove_admin': '➖ ID:',
-            'search_user': '🔍 ID:', 'add_image': '📸 URL:', 'remove_image': '🗑️ Nome:',
+            'bot_name': '📝 Envie o nome do bot (sem @):',
+            'welcome': '📝 Envie o texto de boas-vindas:\n\nVariáveis: {id} {saldo} {nome} {username} {indicacoes}',
+            'image': '🖼️ Envie a URL da imagem:',
+            'support': '📞 Envie o link de suporte:',
+            'btn1': '🔘 Envie o texto do Botão 1:',
+            'btn2': '🔘 Envie o texto do Botão 2:',
+            'btn3': '🔘 Envie o texto do Botão 3:',
+            'btn4': '🔘 Envie o texto do Botão 4:',
+            'btn5': '🔘 Envie o texto do Botão 5:',
+            'btn6': '🔘 Envie o texto do Botão 6:',
+            'btn7': '🔘 Envie o texto do Botão 7:',
+            'btn8': '🔘 Envie o texto do Botão 8:',
+            'pos': '📐 Envie as posições dos 8 botões:\n\nFormato: pos1|pos2|pos3|pos4|pos5|pos6|pos7|pos8\n\nPosições: full, left, right\n\nExemplo:\nfull|full|left|right|left|right|full|full',
+            'mp_token': '🔑 Envie o token do Mercado Pago:',
+            'deposit_min': '📥 Envie o valor mínimo de depósito:',
+            'deposit_max': '📤 Envie o valor máximo de depósito:',
+            'expiration': '⏰ Envie o tempo de expiração (minutos):',
+            'bonus': '🎁 Envie o percentual de bônus (%):',
+            'bonus_min': '📊 Envie o valor mínimo para bônus:',
+            'commission': '💰 Envie o percentual de comissão:',
+            'affiliate_points': '📥 Envie pontos por recarga:',
+            'affiliate_min_points': '🎯 Envie mínimo de pontos:',
+            'add_product': '📦 Envie no formato:\nNOME|PREÇO|ESTOQUE|CATEGORIA|DESCRIÇÃO\n\nExemplo:\nNetflix|15.00|50|Streaming|Tela 30 dias',
+            'broadcast': '📤 Envie a mensagem para transmitir:',
+            'gift': '🎁 Envie o valor do Gift Card:',
+            'add_login': '📦 Envie no formato:\nSERVICO|EMAIL|SENHA|DESCRIÇÃO|DURACAO|PRECO\n\nExemplo:\nNetflix|email@gmail.com|senha123|Tela 30 dias|30 dias|15.00',
+            'remove_login': '➖ Envie o nome do serviço:',
+            'remove_platform': '🗑️ Envie o nome da plataforma:',
+            'clear_stock': '⚠️ Digite CONFIRMAR para zerar todo o estoque:',
+            'service_price': '💰 Envie no formato:\nSERVICO|PREÇO\n\nExemplo:\nNetflix|12.00',
+            'all_prices': '💵 Envie o novo preço para TODOS:',
+            'add_admin': '➕ Envie o ID Telegram do admin:',
+            'remove_admin': '➖ Envie o ID Telegram do admin:',
+            'search_user': '🔍 Envie o ID Telegram do usuário:',
         }
-        await q.edit_message_text(prompts.get(field, f'Envie {field}:'))
+        
+        msg = prompts.get(field, f'Envie o valor para {field}:')
+        kb = [[InlineKeyboardButton("🔙 CANCELAR", callback_data='adm_cfg_general')]]
+        
+        if field in ['add_product', 'broadcast', 'gift', 'add_login', 'remove_login', 'remove_platform', 'clear_stock', 'service_price', 'all_prices', 'add_admin', 'remove_admin', 'search_user']:
+            kb = [[InlineKeyboardButton("🔙 CANCELAR", callback_data='adm_actions')]]
+        elif field in ['mp_token', 'deposit_min', 'deposit_max', 'expiration', 'bonus', 'bonus_min']:
+            kb = [[InlineKeyboardButton("🔙 CANCELAR", callback_data='adm_cfg_pix')]]
+        
+        await q.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(kb))
+        return
+
+async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    text = update.message.text
+    
+    if user.id != ADMIN_ID:
+        return
+    
+    if user.id not in astates:
+        return
+    
+    field = astates[user.id]
+    
+    field_map = {
+        'welcome': 'welcome_text', 'image': 'welcome_image', 'support': 'support_link',
+        'bot_name': 'bot_name', 'btn1': 'btn1_text', 'btn2': 'btn2_text',
+        'btn3': 'btn3_text', 'btn4': 'btn4_text', 'btn5': 'btn5_text',
+        'btn6': 'btn6_text', 'btn7': 'btn7_text', 'btn8': 'btn8_text',
+        'mp_token': 'mp_access_token', 'deposit_min': 'deposit_min',
+        'deposit_max': 'deposit_max', 'expiration': 'pix_expiration',
+        'bonus': 'bonus_percentage', 'bonus_min': 'bonus_min_value',
+        'commission': 'commission_percentage',
+        'affiliate_points': 'affiliate_points_per_recharge',
+        'affiliate_min_points': 'affiliate_min_points',
+    }
+    
+    try:
+        if field == 'pos':
+            parts = text.split('|')
+            count = 0
+            for i, p in enumerate(parts[:8], 1):
+                p = p.strip()
+                if p in ['full', 'left', 'right']:
+                    db.set_setting(f'btn{i}_pos', p)
+                    count += 1
+            await update.message.reply_text(f"✅ {count} posições salvas com sucesso!")
+        
+        elif field == 'broadcast':
+            from database.models import SessionLocal, User
+            session = SessionLocal()
+            users = session.query(User).all()
+            count = 0
+            for u in users:
+                try:
+                    await context.bot.send_message(u.telegram_id, text)
+                    count += 1
+                except:
+                    pass
+            session.close()
+            await update.message.reply_text(f"✅ Transmitido para {count} usuários!")
+        
+        elif field == 'add_product':
+            parts = text.split('|')
+            if len(parts) >= 3:
+                p = db.add_product(parts[0].strip(), float(parts[1]), int(parts[2]),
+                                   parts[3].strip() if len(parts) > 3 else '',
+                                   parts[4].strip() if len(parts) > 4 else '')
+                await update.message.reply_text(f"✅ Produto '{p.name}' adicionado! ID: {p.id}")
+            else:
+                await update.message.reply_text("❌ Formato: NOME|PREÇO|ESTOQUE|CATEGORIA|DESCRIÇÃO")
+        
+        elif field == 'gift':
+            try:
+                from services.gift_service import GiftService
+                gs = GiftService()
+                gift = gs.create(float(text))
+                await update.message.reply_text(f"✅ Gift Card criado!\n🎁 Código: `{gift.code}`\n💰 Valor: R$ {text}", parse_mode='Markdown')
+                gs.close()
+            except:
+                await update.message.reply_text("❌ Valor inválido!")
+        
+        elif field == 'add_login':
+            parts = text.split('|')
+            if len(parts) >= 3:
+                from services.login_service import LoginService
+                ls = LoginService()
+                ls.add(parts[0].strip(), parts[1].strip(), parts[2].strip(),
+                       parts[3].strip() if len(parts) > 3 else '',
+                       parts[4].strip() if len(parts) > 4 else '30 dias',
+                       float(parts[5]) if len(parts) > 5 else 0)
+                ls.close()
+                await update.message.reply_text(f"✅ Login adicionado para {parts[0].strip()}!")
+            else:
+                await update.message.reply_text("❌ Formato: SERVICO|EMAIL|SENHA|DESCRIÇÃO|DURACAO|PRECO")
+        
+        elif field == 'remove_login':
+            from services.login_service import LoginService
+            ls = LoginService()
+            count = ls.remove(text.strip())
+            ls.close()
+            await update.message.reply_text(f"✅ {count} logins removidos!")
+        
+        elif field == 'remove_platform':
+            from services.login_service import LoginService
+            ls = LoginService()
+            count = ls.remove(text.strip())
+            ls.close()
+            await update.message.reply_text(f"✅ {count} logins removidos!")
+        
+        elif field == 'clear_stock':
+            if text.strip().upper() == 'CONFIRMAR':
+                from services.login_service import LoginService
+                ls = LoginService()
+                count = ls.clear()
+                ls.close()
+                await update.message.reply_text(f"✅ {count} logins removidos!")
+            else:
+                await update.message.reply_text("❌ Digite CONFIRMAR para zerar o estoque.")
+        
+        elif field == 'service_price':
+            parts = text.split('|')
+            if len(parts) >= 2:
+                from services.login_service import LoginService
+                ls = LoginService()
+                count = ls.update_price(parts[0].strip(), float(parts[1]))
+                ls.close()
+                await update.message.reply_text(f"✅ {count} logins de {parts[0].strip()} atualizados para R$ {parts[1].strip()}!")
+            else:
+                await update.message.reply_text("❌ Formato: SERVICO|PREÇO")
+        
+        elif field == 'all_prices':
+            try:
+                from services.login_service import LoginService
+                ls = LoginService()
+                count = ls.update_all(float(text))
+                ls.close()
+                await update.message.reply_text(f"✅ {count} logins atualizados para R$ {text}!")
+            except:
+                await update.message.reply_text("❌ Valor inválido!")
+        
+        elif field == 'add_admin':
+            try:
+                u = db.get_user(int(text))
+                if u:
+                    u.is_admin = True
+                    db.db.commit()
+                    await update.message.reply_text(f"✅ Admin adicionado: {text}")
+                else:
+                    await update.message.reply_text("❌ Usuário não encontrado!")
+            except:
+                await update.message.reply_text("❌ ID inválido!")
+        
+        elif field == 'remove_admin':
+            try:
+                u = db.get_user(int(text))
+                if u:
+                    u.is_admin = False
+                    db.db.commit()
+                    await update.message.reply_text(f"✅ Admin removido: {text}")
+                else:
+                    await update.message.reply_text("❌ Usuário não encontrado!")
+            except:
+                await update.message.reply_text("❌ ID inválido!")
+        
+        elif field == 'search_user':
+            try:
+                u = db.get_user(int(text))
+                if u:
+                    await update.message.reply_text(
+                        f"👤 *Usuário encontrado*\n\n"
+                        f"🆔 ID: {u.telegram_id}\n"
+                        f"👤 Nome: {u.first_name}\n"
+                        f"💰 Saldo: R$ {u.balance:.2f}\n"
+                        f"🛒 Compras: {u.total_purchases}\n"
+                        f"💳 Recarregado: R$ {u.total_recharged:.2f}",
+                        parse_mode='Markdown'
+                    )
+                else:
+                    await update.message.reply_text("❌ Usuário não encontrado!")
+            except:
+                await update.message.reply_text("❌ ID inválido!")
+        
+        elif field in field_map:
+            db.set_setting(field_map[field], text)
+            await update.message.reply_text(f"✅ Configuração salva com sucesso!")
+        
+        else:
+            await update.message.reply_text("✅ Comando processado!")
+    
+    except Exception as e:
+        await update.message.reply_text(f"❌ Erro ao salvar: {str(e)}")
+    
+    finally:
+        del astates[user.id]
