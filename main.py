@@ -42,7 +42,7 @@ from services.pdf_service import PDFService
 
 # Utilitários
 from utils.logger import logger
-from utils.cache import cache_handler
+from utils import cache_handler
 from middleware.auth import AuthMiddleware
 from middleware.rate_limit import rate_limiter
 from api.rest_api import run_api
