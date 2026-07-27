@@ -1,0 +1,56 @@
+import pytest
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from database.models import init_db, SessionLocal
+from database.db_manager import DBManager
+
+@pytest.fixture(scope='session')
+def db():
+    init_db()
+    return DBManager()
+
+@pytest.fixture(scope='function')
+def session():
+    return SessionLocal()
+
+@pytest.fixture
+def sample_user(db):
+    user = db.create_user(888888, 'pytest_user', 'PyTest')
+    yield user
+    session = SessionLocal()
+    from database.models import User, Purchase, PixRecharge
+    session.query(Purchase).filter_by(user_id=user.id).delete()
+    session.query(PixRecharge).filter_by(user_id=user.id).delete()
+    session.query(User).filter_by(id=user.id).delete()
+    session.commit()
+    session.close()
+
+@pytest.fixture
+def sample_product(db):
+    product = db.add_product('PyTest Product', 99.90, 100, 'Test', 'PyTest Description')
+    yield product
+    db.delete_product(product.id)
+
+@pytest.fixture
+def mock_update():
+    from unittest.mock import MagicMock
+    update = MagicMock()
+    update.effective_user.id = 999999
+    update.effective_user.first_name = 'Mock'
+    update.effective_user.username = 'mockuser'
+    update.message.text = '/start'
+    update.callback_query = MagicMock()
+    update.callback_query.data = 'm1'
+    update.callback_query.from_user = update.effective_user
+    return update
+
+@pytest.fixture
+def mock_context():
+    from unittest.mock import MagicMock
+    context = MagicMock()
+    context.bot = MagicMock()
+    context.args = []
+    return context
