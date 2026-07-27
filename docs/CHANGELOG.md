@@ -83,4 +83,60 @@ All notable changes to this project will be documented in this file.
 - Webhook manager for Mercado Pago
 - Automatic payment checker
 - Scheduler improvements
-- Backup rotation
+- Backup rotation (keep last 10)
+- Log cleanup (30 days)
+- Database repair utility
+- Security enhancements
+- Input sanitization
+
+## [1.3.0] - 2024-04-01
+### Added
+- Invoice PDF generation
+- Receipt PDF generation
+- Full report PDF export
+- CSV user export
+- CSV sales export
+- Support ticket system
+- FAQ management
+- Coupon management
+- Alert notification system
+- Referral link generation
+- Points accumulation system
+- Conversion timeout handling
+
+## [1.4.0] - 2024-05-01
+### Added
+- Cache handler for performance
+- Rate limiter improvements
+- Session timeout handling
+- Error handler with logging
+- Flood detection per user
+- Database migration tools
+- Data export/import
+- Tenant data isolation
+- Subscription expiration check
+- Plan upgrade/downgrade
+
+### Fixed
+- PIX payment confirmation flow
+- Balance update after purchase
+- Stock decrease synchronization
+- Gift card redemption validation
+- Referral commission calculation
+- Button position rendering
+
+### Changed
+- Improved error messages
+- Better logging format
+- Optimized database queries
+- Reduced cache TTL for settings
+
+## [Unreleased]
+### Planned
+- Multi-language support
+- Payment methods (credit card, boleto)
+- Advanced analytics dashboard
+- Mobile app integration
+- Voice commands
+- AI-powered support
+- Blockchain payment integration
